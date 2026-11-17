@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Linha do tempo visual e prática interativa de português, inglês e alemão.">
+  <title>Oscar's Language Timeline</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="noise" aria-hidden="true"></div>
+
+  <div class="language-modal" id="languageModal" role="dialog" aria-modal="true" aria-labelledby="languageTitle" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="language-panel">
+      <button class="modal-close" id="closeLanguageModal" aria-label="Fechar seletor de idioma">×</button>
+      <p class="eyebrow">OSCAR'S LANGUAGE TIMELINE</p>
+      <h2 id="languageTitle">¿Qué idioma quieres aprender hoy?</h2>
+      <p class="modal-copy">Elige un idioma. Tu progreso de verbos y quiz se guarda por separado.</p>
+      <div class="language-options">
+        <button class="language-card recommended" data-language="pt">
+          <span class="language-code">PT</span>
+          <span><strong>Português</strong><small>Portuguese · Brasil</small><em>Entenda o tempo. Conte sua história.</em></span>
+          <b>RECOMENDADO</b>
+        </button>
+        <button class="language-card" data-language="en">
+          <span class="language-code">EN</span>
+          <span><strong>English</strong><small>English</small><em>Understand time. Express your story.</em></span>
+        </button>
+        <button class="language-card" data-language="de">
+          <span class="language-code">DE</span>
+          <span><strong>Deutsch</strong><small>German</small><em>Verstehe die Zeit. Erzähle deine Geschichte.</em></span>
+        </button>
+      </div>
+      <p class="modal-note">O módulo de português inclui conversas, pronúncia, falsos cognatos e expressões brasileiras.</p>
+    </div>
+  </div>
+
+  <header class="site-header">
+    <nav class="nav-shell" aria-label="Navegação principal">
+      <a class="brand" href="#top" aria-label="Início">OLT</a>
+      <div class="nav-links" id="navLinks"></div>
+      <button class="language-switch" id="languageSwitch" aria-label="Trocar idioma"><span id="languageBadge">PT</span><small>BR</small></button>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero section-shell" id="top" aria-labelledby="heroTitle">
+      <p class="eyebrow" id="heroEyebrow"></p>
+      <h1 id="heroTitle"></h1>
+      <p class="hero-copy" id="heroCopy"></p>
+      <div class="hero-actions">
+        <a class="button button-primary" href="#timeline" id="primaryCta"></a>
+        <a class="button button-ghost" href="#quiz" id="secondaryCta"></a>
+      </div>
+      <div class="benefit-grid" id="benefitGrid"></div>
+      <blockquote id="heroQuote"></blockquote>
+    </section>
+
+    <section class="class-review-section section-shell" id="class-review" aria-labelledby="classReviewTitle" hidden>
+      <div class="section-heading split-heading">
+        <div>
+          <p class="eyebrow" id="classReviewKicker"></p>
+          <h2 id="classReviewTitle"></h2>
+          <p id="classReviewCopy"></p>
+        </div>
+        <div class="class-progress" aria-label="Progresso do conteúdo das aulas">
+          <strong id="classProgressValue">0 / 0</strong>
+          <small>TÓPICOS REVISADOS</small>
+        </div>
+      </div>
+      <div class="lesson-tabs" id="lessonTabs" aria-label="Conteúdos das aulas"></div>
+      <article class="lesson-panel" id="lessonPanel"></article>
+      <div class="review-practice">
+        <div>
+          <p class="eyebrow">REVISÃO RÁPIDA</p>
+          <h3>Treine o conteúdo da planilha.</h3>
+          <p>Leia a pergunta, responda em voz alta e revele a forma correta.</p>
+        </div>
+        <article class="class-flashcard" id="classFlashcard">
+          <div class="flashcard-meta"><span id="classCardNumber"></span><span>PT-BR</span></div>
+          <p id="classCardPrompt"></p>
+          <strong id="classCardAnswer" hidden></strong>
+          <small id="classCardNote"></small>
+          <div class="flashcard-actions">
+            <button class="button button-ghost" id="revealClassCard">Revelar resposta</button>
+            <button class="button button-primary" id="nextClassCard">Próxima</button>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="timeline-section section-shell" id="timeline" aria-labelledby="timelineTitle">
+      <div class="section-heading row-heading">
+        <div>
+          <p class="eyebrow" id="timelineKicker"></p>
+          <h2 id="timelineTitle"></h2>
+        </div>
+        <div class="timeline-controls">
+          <button id="timelinePrev" aria-label="Deslocar linha do tempo para a esquerda">←</button>
+          <button id="timelineNext" aria-label="Deslocar linha do tempo para a direita">→</button>
+        </div>
+      </div>
+      <div class="time-axis" id="timeAxis"></div>
+      <div class="timeline-track" id="timelineTrack" tabindex="0"></div>
+    </section>
+
+    <section class="cheat-section section-shell" id="cheat-sheet" aria-labelledby="cheatTitle">
+      <div class="section-heading">
+        <p class="eyebrow" id="cheatKicker"></p>
+        <h2 id="cheatTitle"></h2>
+        <p id="cheatCopy"></p>
+      </div>
+      <div class="conjugation-grid" id="conjugationGrid"></div>
+      <div class="quick-tips" id="quickTips"></div>
+    </section>
+
+    <section class="daily-section" id="daily-life" aria-labelledby="dailyTitle">
+      <div class="section-shell daily-shell">
+        <p class="eyebrow" id="dailyTitle"></p>
+        <div class="daily-ticker" id="dailyTicker"></div>
+      </div>
+    </section>
+
+    <section class="trainer-section section-shell" id="verbs" aria-labelledby="trainerTitle">
+      <div class="section-heading split-heading">
+        <div>
+          <p class="eyebrow" id="trainerKicker"></p>
+          <h2 id="trainerTitle"></h2>
+          <p id="trainerCopy"></p>
+        </div>
+        <div class="progress-orbit" aria-label="Progresso de domínio">
+          <strong id="masteryCount">0</strong>
+          <small id="masteryTotal">/ 0</small>
+        </div>
+      </div>
+      <div class="progress-bar" aria-hidden="true"><span id="progressFill"></span></div>
+      <div class="trainer-toolbar">
+        <div class="filter-group" id="verbFilters"></div>
+        <button class="small-button danger" id="resetVerbs"></button>
+      </div>
+      <article class="verb-card">
+        <div class="verb-meta"><span id="verbIndex"></span><span id="verbTranslation"></span></div>
+        <h3 id="verbInfinitive"></h3>
+        <div class="answer-grid">
+          <label><span id="verbLabelOne"></span><input id="verbAnswerOne" autocomplete="off" spellcheck="false"></label>
+          <label><span id="verbLabelTwo"></span><input id="verbAnswerTwo" autocomplete="off" spellcheck="false"></label>
+        </div>
+        <div class="trainer-actions">
+          <button class="button button-ghost" id="showHint"></button>
+          <button class="button button-ghost" id="skipVerb"></button>
+          <button class="button button-primary" id="checkVerb"></button>
+        </div>
+        <div class="feedback" id="verbFeedback" aria-live="polite"></div>
+      </article>
+    </section>
+
+    <section class="conversation-section section-shell" id="conversations" aria-labelledby="conversationTitle">
+      <div class="section-heading">
+        <p class="eyebrow" id="conversationKicker"></p>
+        <h2 id="conversationTitle"></h2>
+        <p id="conversationCopy"></p>
+      </div>
+      <div class="scene-tabs" id="sceneTabs"></div>
+      <article class="conversation-card" id="conversationCard"></article>
+    </section>
+
+    <section class="essentials-section section-shell" id="essentials" aria-labelledby="essentialsTitle">
+      <div class="section-heading">
+        <p class="eyebrow" id="essentialsKicker"></p>
+        <h2 id="essentialsTitle"></h2>
+        <p id="essentialsCopy"></p>
+      </div>
+      <div class="essentials-grid" id="essentialsGrid"></div>
+    </section>
+
+    <section class="quiz-section section-shell" id="quiz" aria-labelledby="quizTitle">
+      <div class="section-heading split-heading">
+        <div>
+          <p class="eyebrow" id="quizKicker"></p>
+          <h2 id="quizTitle"></h2>
+          <p id="quizCopy"></p>
+        </div>
+        <div class="score-card"><span id="scoreLabel"></span><strong id="scoreValue">0 / 10</strong></div>
+      </div>
+      <article class="quiz-card">
+        <div class="question-meta"><span id="questionIndex"></span><span id="questionTense"></span></div>
+        <h3 id="questionText"></h3>
+        <div class="quiz-options" id="quizOptions"></div>
+        <div class="quiz-feedback" id="quizFeedback" aria-live="polite"></div>
+        <div class="quiz-actions">
+          <button class="button button-ghost" id="restartQuiz"></button>
+          <button class="button button-primary" id="nextQuestion" disabled></button>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <footer>
+    <div class="section-shell footer-shell">
+      <div><strong id="footerBrand"></strong><p id="footerCopy"></p></div>
+      <a href="#top">↑ TOP</a>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
