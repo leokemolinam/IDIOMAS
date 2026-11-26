@@ -304,29 +304,86 @@ function saveHomeworkAnswers(answers) {
 function getHomeworkFields() {
   const fields = [];
   HOMEWORK.classes.forEach(homeworkClass => {
-    homeworkClass.warmup.forEach((prompt,index) => fields.push({classId:homeworkClass.id,key:`${homeworkClass.id}.warmup.${index}`,label:`Resposta oral · ${prompt}`}));
+    homeworkClass.warmup.forEach((prompt,index) => fields.push({classId:homeworkClass.id,key:`${homeworkClass.id}.warmup.${index}`,label:`Resposta oral · ${prompt}`,mode:'model',answer:homeworkClass.warmupAnswers[index]}));
     homeworkClass.verbs.forEach(verb => {
-      verb.complete.forEach((prompt,index) => fields.push({classId:homeworkClass.id,key:`${homeworkClass.id}.${verb.id}.complete.${index}`,label:`${verb.name} · Completa · ${prompt}`}));
-      verb.own.forEach((prompt,index) => fields.push({classId:homeworkClass.id,key:`${homeworkClass.id}.${verb.id}.own.${index}`,label:`${verb.name} · Sua frase · ${prompt}`}));
+      verb.complete.forEach((prompt,index) => fields.push({classId:homeworkClass.id,key:`${homeworkClass.id}.${verb.id}.complete.${index}`,label:`${verb.name} · Completa · ${prompt}`,mode:'exact',answer:verb.completeAnswers[index][0],accepted:verb.completeAnswers[index]}));
+      verb.own.forEach((prompt,index) => fields.push({classId:homeworkClass.id,key:`${homeworkClass.id}.${verb.id}.own.${index}`,label:`${verb.name} · Sua frase · ${prompt}`,mode:'model',answer:verb.ownAnswers[index]}));
     });
     homeworkClass.presentations.forEach(presentation => {
-      presentation.notes.forEach((prompt,index) => fields.push({classId:homeworkClass.id,key:`${homeworkClass.id}.${presentation.id}.notes.${index}`,label:`${presentation.title} · ${prompt}`}));
-      presentation.companion.forEach((prompt,index) => fields.push({classId:homeworkClass.id,key:`${homeworkClass.id}.${presentation.id}.companion.${index}`,label:`${presentation.title} · Sobre seu colega · ${prompt}`}));
+      presentation.notes.forEach((prompt,index) => fields.push({classId:homeworkClass.id,key:`${homeworkClass.id}.${presentation.id}.notes.${index}`,label:`${presentation.title} · ${prompt}`,mode:'model',answer:presentation.noteAnswers[index]}));
+      presentation.companion.forEach((prompt,index) => fields.push({classId:homeworkClass.id,key:`${homeworkClass.id}.${presentation.id}.companion.${index}`,label:`${presentation.title} · Sobre seu colega · ${prompt}`,mode:'model',answer:presentation.companionAnswers[index]}));
     });
-    homeworkClass.roleplays.forEach(roleplay => fields.push({classId:homeworkClass.id,key:`${homeworkClass.id}.roleplay.${roleplay.id}`,label:`Roleplay · ${roleplay.title} · Minhas frases`}));
-    homeworkClass.exit.forEach((verb,index) => fields.push({classId:homeworkClass.id,key:`${homeworkClass.id}.exit.${index}`,label:`Exit ticket · ${verb}`}));
+    homeworkClass.roleplays.forEach(roleplay => fields.push({classId:homeworkClass.id,key:`${homeworkClass.id}.roleplay.${roleplay.id}`,label:`Roleplay · ${roleplay.title} · Minhas frases`,mode:'model',answer:roleplay.modelAnswer}));
+    homeworkClass.exit.forEach((verb,index) => fields.push({classId:homeworkClass.id,key:`${homeworkClass.id}.exit.${index}`,label:`Exit ticket · ${verb}`,mode:'model',answer:homeworkClass.exitAnswers[index]}));
     homeworkClass.checklist.forEach((item,index) => fields.push({classId:homeworkClass.id,key:`${homeworkClass.id}.checklist.${index}`,label:`Revisão · ${item}`,type:'checkbox'}));
   });
   return fields;
 }
 
+function normalizeHomeworkAnswer(value) {
+  return String(value || '').trim().toLocaleLowerCase('pt-BR').replace(/[.!?]+$/,'').replace(/\s+/g,' ');
+}
+
+function getHomeworkFieldGuide(key) {
+  return getHomeworkFields().find(field=>field.key === key);
+}
+
+function renderHomeworkReview(review) {
+  if (!review) return '';
+  const isCorrect = review.status === 'correct';
+  const isWrong = review.status === 'wrong';
+  const heading = isCorrect ? '✓ Resposta correta' : isWrong ? 'A resposta precisa de correção' : 'Resposta guardada · compare com o modelo';
+  const correctedLabel = review.mode === 'exact' ? 'Versão correta' : 'Versão-modelo em português';
+  const corrected = isCorrect ? '' : `<div><small>${correctedLabel}</small><p>${escapeHtml(review.corrected)}</p></div>`;
+  return `<article class="homework-review ${isCorrect?'is-correct':isWrong?'is-wrong':'is-model'}"><strong>${heading}</strong><div class="homework-review-grid"><div><small>Você enviou e guardou</small><p>${escapeHtml(review.submitted)}</p></div>${corrected}</div></article>`;
+}
+
 function homeworkField(key, label, multiline = true) {
-  const value = getHomeworkAnswers()[key] || '';
+  const answers = getHomeworkAnswers();
+  const value = answers[key] || '';
+  const review = answers.__reviews?.[key];
   const id = `homework-${key.replace(/[^a-z0-9]+/gi,'-')}`;
   const control = multiline
     ? `<textarea id="${id}" data-homework-key="${key}" rows="2" placeholder="Escreva sua resposta em português">${escapeHtml(value)}</textarea>`
     : `<input id="${id}" data-homework-key="${key}" value="${escapeHtml(value)}" autocomplete="off" placeholder="Resposta">`;
-  return `<label class="homework-field" for="${id}"><span>${label}</span>${control}</label>`;
+  return `<div class="homework-field ${review?'has-review':''}" data-homework-field="${key}"><label for="${id}"><span>${label}</span></label>${control}<div class="homework-field-actions"><button type="button" class="homework-review-button" data-review-homework="${key}">${review?'Guardar novamente':'Guardar e corrigir'}</button><span class="homework-field-state" aria-live="polite"></span></div><div class="homework-review-slot" aria-live="polite">${renderHomeworkReview(review)}</div></div>`;
+}
+
+function reviewHomeworkField(key, wrapper) {
+  const guide = getHomeworkFieldGuide(key);
+  const input = wrapper?.querySelector('[data-homework-key]');
+  const state = wrapper?.querySelector('.homework-field-state');
+  if (!guide || !input) return;
+  const submitted = input.value.trim();
+  if (!submitted) {
+    state.textContent = 'Escreva uma resposta antes de guardar.';
+    state.className = 'homework-field-state is-error';
+    input.focus();
+    return;
+  }
+
+  const answers = getHomeworkAnswers();
+  const accepted = guide.accepted || [guide.answer];
+  const isCorrect = guide.mode === 'exact' && accepted.some(answer=>normalizeHomeworkAnswer(answer) === normalizeHomeworkAnswer(submitted));
+  const review = {
+    submitted,
+    corrected: guide.answer,
+    mode: guide.mode,
+    status: guide.mode === 'exact' ? (isCorrect ? 'correct' : 'wrong') : 'model',
+    reviewedAt: new Date().toISOString()
+  };
+  answers[key] = submitted;
+  answers.__reviews = answers.__reviews || {};
+  answers.__reviews[key] = review;
+  saveHomeworkAnswers(answers);
+  wrapper.classList.add('has-review');
+  wrapper.classList.remove('is-edited');
+  wrapper.querySelector('.homework-review-slot').innerHTML = renderHomeworkReview(review);
+  wrapper.querySelector('.homework-review-button').textContent = 'Guardar novamente';
+  state.textContent = isCorrect ? 'Correto e guardado.' : guide.mode === 'exact' ? 'Guardado com correção.' : 'Guardado com uma versão-modelo.';
+  state.className = `homework-field-state ${isCorrect?'is-success':''}`;
+  updateHomeworkProgress();
+  showHomeworkSaved();
 }
 
 function homeworkPlayButton(text) {
@@ -375,7 +432,7 @@ function renderHomework() {
     return `<label class="homework-check"><input type="checkbox" data-homework-key="${key}" ${answers[key]?'checked':''}><span>${item}</span></label>`;
   }).join('');
 
-  $('#homeworkPanel').innerHTML = `<div class="homework-class-head"><p class="eyebrow">${homeworkClass.label.toUpperCase()} DE 2</p><h3>${homeworkClass.title}</h3><p>Fale primeiro e escreva depois. Use os botões de áudio para ouvir cada frase com voz em português brasileiro.</p></div><section class="homework-subsection"><p class="homework-label">01 · DI PRIMEIRO</p><h3>Responda em voz alta</h3><div class="homework-warmup">${warmup}</div></section>${verbs}${presentations}<section class="homework-subsection"><p class="homework-label">ROLEPLAYS</p><h3>Pratique as situações</h3><p>Troque de papel e repita. Use uma situação de cada vez, sem ler.</p><div class="homework-roleplays">${roleplays}</div></section><section class="homework-subsection"><p class="homework-label">EXIT TICKET</p><h3>Escreva três frases verdadeiras</h3><div class="homework-fields homework-exit">${exit}</div><div class="homework-checklist"><h4>Revisão final</h4>${checklist}</div></section>`;
+  $('#homeworkPanel').innerHTML = `<div class="homework-class-head"><p class="eyebrow">${homeworkClass.label.toUpperCase()} DE 2</p><h3>${homeworkClass.title}</h3><p>Fale primeiro e escreva depois. Em cada resposta, use “Guardar e corrigir” para conservar seu envio e ver a forma correta ou uma versão-modelo em português.</p></div><section class="homework-subsection"><p class="homework-label">01 · DI PRIMEIRO</p><h3>Responda em voz alta</h3><div class="homework-warmup">${warmup}</div></section>${verbs}${presentations}<section class="homework-subsection"><p class="homework-label">ROLEPLAYS</p><h3>Pratique as situações</h3><p>Troque de papel e repita. Use uma situação de cada vez, sem ler.</p><div class="homework-roleplays">${roleplays}</div></section><section class="homework-subsection"><p class="homework-label">EXIT TICKET</p><h3>Escreva três frases verdadeiras</h3><div class="homework-fields homework-exit">${exit}</div><div class="homework-checklist"><h4>Revisão final</h4>${checklist}</div></section>`;
   updateHomeworkProgress();
 }
 
@@ -402,6 +459,8 @@ function exportHomework() {
     fields.filter(field=>field.classId===homeworkClass.id).forEach(field => {
       const value = field.type === 'checkbox' ? (answers[field.key] ? '[X] Sim' : '[ ] Não marcado') : (String(answers[field.key] || '').trim() || '—');
       lines.push(field.label,value,'');
+      const review = answers.__reviews?.[field.key];
+      if (review) lines.push('Resposta enviada e guardada',review.submitted,review.mode === 'exact' ? 'Versão correta' : 'Versão-modelo em português',review.corrected,'');
     });
   });
   const blob = new Blob([lines.join('\r\n')],{type:'text/plain;charset=utf-8'});
@@ -741,6 +800,11 @@ $('#homeworkTabs').addEventListener('click',(event)=>{
   renderHomework();
 });
 $('#homeworkPanel').addEventListener('click',(event)=>{
+  const reviewButton = event.target.closest('button[data-review-homework]');
+  if (reviewButton) {
+    reviewHomeworkField(reviewButton.dataset.reviewHomework, reviewButton.closest('[data-homework-field]'));
+    return;
+  }
   const speakButton = event.target.closest('button[data-speak]');
   if (!speakButton) return;
   speakPortuguese(decodeURIComponent(speakButton.dataset.speak), speakButton);
@@ -751,6 +815,18 @@ $('#homeworkPanel').addEventListener('input',(event)=>{
   const answers = getHomeworkAnswers();
   answers[field.dataset.homeworkKey] = field.type === 'checkbox' ? field.checked : field.value;
   saveHomeworkAnswers(answers);
+  const wrapper = field.closest('[data-homework-field]');
+  const review = answers.__reviews?.[field.dataset.homeworkKey];
+  if (wrapper && review && field.value.trim() !== review.submitted) {
+    wrapper.classList.add('is-edited');
+    const button = wrapper.querySelector('.homework-review-button');
+    const state = wrapper.querySelector('.homework-field-state');
+    if (button) button.textContent = 'Guardar e corrigir mudanças';
+    if (state) {
+      state.textContent = 'Há mudanças ainda não revisadas.';
+      state.className = 'homework-field-state';
+    }
+  }
   updateHomeworkProgress();
   showHomeworkSaved();
 });
