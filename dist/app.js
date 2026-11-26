@@ -201,6 +201,7 @@ let quizAnswered = false;
 let currentLesson = 0;
 let classCardIndex = 0;
 let classCardRevealed = false;
+let activeSpeechButton = null;
 
 function progressKey() { return `olt-progress-${language}`; }
 function getProgress() {
@@ -325,7 +326,7 @@ function updateClassProgress() {
 function renderLessonBlock(block) {
   let content = '';
   if (block.type === 'pairs') {
-    content = `<div class="review-pairs">${block.items.map(([primary,translation,note])=>`<div class="review-pair"><strong>${primary}</strong><span>${translation}</span>${note?`<small>${note}</small>`:''}</div>`).join('')}</div>`;
+    content = `<div class="review-pairs">${block.items.map(([primary,translation,note])=>`<div class="review-pair"><strong>${primary}</strong><span>${translation}</span>${note?`<small>${note}</small>`:''}<button class="speak-button" type="button" data-speak="${encodeURIComponent(primary)}" aria-label="Ouvir pronúncia" title="Ouvir pronúncia"></button></div>`).join('')}</div>`;
   } else if (block.type === 'lists') {
     content = `<div class="lesson-list-grid">${block.items.map(([title,lines])=>`<div class="lesson-list-card"><strong>${title}</strong><p>${lines.join('<br>')}</p></div>`).join('')}</div>`;
   } else if (block.type === 'table') {
@@ -337,9 +338,56 @@ function renderLessonBlock(block) {
 function renderLesson() {
   const review = DATA[language].classReview;
   if (!review) return;
+  stopPortugueseSpeech();
   const lesson = review.lessons[currentLesson];
   const reviewed = getClassProgress().includes(lesson.id);
   $('#lessonPanel').innerHTML = `<div class="lesson-panel-head"><div><p class="eyebrow">${lesson.kicker}</p><h3>${lesson.title}</h3><p>${lesson.description}</p></div><button class="button button-ghost ${reviewed?'reviewed':''}" id="markLessonReviewed" data-lesson-id="${lesson.id}">${reviewed?'✓ Revisado':'Marcar como revisado'}</button></div>${lesson.blocks.map(renderLessonBlock).join('')}`;
+}
+
+function resetSpeechButton(button) {
+  if (!button) return;
+  button.classList.remove('is-playing');
+  button.setAttribute('aria-label', 'Ouvir pronúncia');
+  button.title = 'Ouvir pronúncia';
+}
+
+function stopPortugueseSpeech() {
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  resetSpeechButton(activeSpeechButton);
+  activeSpeechButton = null;
+}
+
+function speakPortuguese(text, button) {
+  if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
+    button.setAttribute('aria-label', 'Áudio não disponível neste navegador');
+    button.title = 'Áudio não disponível neste navegador';
+    return;
+  }
+
+  stopPortugueseSpeech();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = 'pt-BR';
+  utterance.rate = 0.84;
+  utterance.pitch = 1;
+
+  const voices = window.speechSynthesis.getVoices();
+  utterance.voice = voices.find(voice => voice.lang.toLowerCase() === 'pt-br')
+    || voices.find(voice => voice.lang.toLowerCase().startsWith('pt'))
+    || null;
+
+  activeSpeechButton = button;
+  button.classList.add('is-playing');
+  button.setAttribute('aria-label', `Reproduzindo: ${text}`);
+  button.title = `Reproduzindo: ${text}`;
+
+  const finish = () => {
+    if (activeSpeechButton !== button) return;
+    resetSpeechButton(button);
+    activeSpeechButton = null;
+  };
+  utterance.onend = finish;
+  utterance.onerror = finish;
+  window.speechSynthesis.speak(utterance);
 }
 
 function toggleLessonReviewed() {
@@ -492,6 +540,7 @@ function nextQuiz() {
 }
 
 function setLanguage(next) {
+  stopPortugueseSpeech();
   language = next;
   localStorage.setItem('olt-language', language);
   $('#languageModal').hidden = true;
@@ -517,7 +566,14 @@ $('#checkVerb').addEventListener('click',checkVerb);
 $('#verbAnswerOne').addEventListener('keydown',(event)=>{ if(event.key==='Enter') $('#verbAnswerTwo').focus(); });
 $('#verbAnswerTwo').addEventListener('keydown',(event)=>{ if(event.key==='Enter') checkVerb(); });
 $('#lessonTabs').addEventListener('click',(event)=>{ const button=event.target.closest('button[data-lesson]'); if(!button)return; currentLesson=Number(button.dataset.lesson); $$('#lessonTabs button').forEach(item=>item.classList.toggle('active',item===button)); renderLesson(); });
-$('#lessonPanel').addEventListener('click',(event)=>{ if(event.target.closest('#markLessonReviewed')) toggleLessonReviewed(); });
+$('#lessonPanel').addEventListener('click',(event)=>{
+  const speakButton = event.target.closest('button[data-speak]');
+  if (speakButton) {
+    speakPortuguese(decodeURIComponent(speakButton.dataset.speak), speakButton);
+    return;
+  }
+  if (event.target.closest('#markLessonReviewed')) toggleLessonReviewed();
+});
 $('#revealClassCard').addEventListener('click',()=>{ classCardRevealed=!classCardRevealed; renderClassCard(); });
 $('#nextClassCard').addEventListener('click',()=>{ classCardIndex+=1; classCardRevealed=false; renderClassCard(); });
 $('#sceneTabs').addEventListener('click',(event)=>{ const button=event.target.closest('button[data-scene]'); if(!button)return; currentScene=Number(button.dataset.scene); $$('#sceneTabs button').forEach(item=>item.classList.toggle('active',item===button)); renderScene(); });

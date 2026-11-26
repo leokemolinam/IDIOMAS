@@ -84,11 +84,17 @@ blockquote cite { display: block; margin-top: 8px; color: var(--now); font-style
 .lesson-block + .lesson-block { margin-top: 30px; border-top: 1px solid var(--line); }
 .lesson-block h4 { margin: 0 0 16px; color: var(--gold); font-size: .77rem; letter-spacing: .11em; text-transform: uppercase; }
 .review-pairs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-.review-pair { padding: 16px; border: 1px solid rgba(255,255,255,.075); border-radius: 14px; background: #0c0c0f; }
+.review-pair { position: relative; min-height: 112px; padding: 16px 72px 16px 16px; border: 1px solid rgba(255,255,255,.075); border-radius: 14px; background: #0c0c0f; }
 .review-pair strong, .review-pair span, .review-pair small { display: block; }
 .review-pair strong { font-size: 1.02rem; }
 .review-pair span { margin-top: 4px; color: var(--gold); }
 .review-pair small { margin-top: 6px; color: var(--muted); }
+.speak-button { position: absolute; right: 16px; bottom: 16px; width: 42px; height: 42px; padding: 0; display: grid; place-items: center; border: 1px solid rgba(45,222,152,.38); border-radius: 50%; background: rgba(45,222,152,.08); color: var(--now); cursor: pointer; transition: transform .18s ease, color .18s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.speak-button::before { content: "▶"; margin-left: 2px; font-size: .88rem; line-height: 1; }
+.speak-button:hover { transform: translateY(-2px); border-color: var(--now); background: rgba(45,222,152,.15); box-shadow: 0 8px 24px rgba(45,222,152,.12); }
+.speak-button:focus-visible { outline: 3px solid rgba(45,222,152,.34); outline-offset: 3px; }
+.speak-button.is-playing { color: #08080b; border-color: var(--now); background: var(--now); box-shadow: 0 0 0 6px rgba(45,222,152,.11); }
+.speak-button.is-playing::before { content: "■"; margin-left: 0; font-size: .68rem; }
 .lesson-list-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .lesson-list-card { padding: 18px; border: 1px solid rgba(255,255,255,.075); border-radius: 16px; background: #0c0c0f; }
 .lesson-list-card strong { display: block; margin-bottom: 10px; color: var(--now); }
