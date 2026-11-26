@@ -1,7 +1,7 @@
 const DATA = {
   pt: {
     locale: 'pt-BR', badge: 'PT', region: 'BR',
-    nav: [['class-review','Minhas Aulas'],['timeline','Linha do Tempo'],['cheat-sheet','Guia Rápido'],['verbs','Verbos'],['conversations','Conversas'],['essentials','Resumo'],['quiz','Quiz']],
+    nav: [['class-review','Minhas Aulas'],['homework','Fazer tarefa'],['timeline','Linha do Tempo'],['cheat-sheet','Guia Rápido'],['verbs','Verbos'],['conversations','Conversas'],['essentials','Resumo'],['quiz','Quiz']],
     hero: {
       eyebrow: "LINHA DO TEMPO DE PORTUGUÊS DO OSCAR",
       title: 'Entenda o tempo.<br><span class="accent-past">Conte</span> <span class="accent-now">sua</span> <span class="accent-future">história.</span>',
@@ -189,6 +189,7 @@ const $$ = (selector) => [...document.querySelectorAll(selector)];
 const normalize = (value) => value.toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g,' ').trim();
 const accepts = (answer, expected) => expected.split('|').some(value => normalize(value) === normalize(answer));
 const shuffle = (values) => values.map(value => ({value, sort:Math.random()})).sort((a,b)=>a.sort-b.sort).map(item=>item.value);
+const escapeHtml = (value) => String(value).replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
 
 let language = localStorage.getItem('olt-language') || 'pt';
 let verbFilter = 'all';
@@ -202,6 +203,9 @@ let currentLesson = 0;
 let classCardIndex = 0;
 let classCardRevealed = false;
 let activeSpeechButton = null;
+let activePortugueseAudio = null;
+let currentHomeworkClass = 0;
+let homeworkStatusTimer = null;
 
 function progressKey() { return `olt-progress-${language}`; }
 function getProgress() {
@@ -228,6 +232,7 @@ function render() {
   $('#heroQuote').innerHTML = data.hero.quote;
 
   renderClassReview();
+  renderHomework();
 
   $('#timelineKicker').textContent = data.timeline.kicker;
   $('#timelineTitle').textContent = data.timeline.title;
@@ -285,6 +290,128 @@ function render() {
 
   $('#footerBrand').textContent = data.footer[0];
   $('#footerCopy').textContent = data.footer[1];
+}
+
+function getHomeworkAnswers() {
+  try { return JSON.parse(localStorage.getItem('olt-homework-support-verbs')) || {}; }
+  catch { return {}; }
+}
+
+function saveHomeworkAnswers(answers) {
+  localStorage.setItem('olt-homework-support-verbs', JSON.stringify(answers));
+}
+
+function getHomeworkFields() {
+  const fields = [];
+  HOMEWORK.classes.forEach(homeworkClass => {
+    homeworkClass.warmup.forEach((prompt,index) => fields.push({classId:homeworkClass.id,key:`${homeworkClass.id}.warmup.${index}`,label:`Resposta oral · ${prompt}`}));
+    homeworkClass.verbs.forEach(verb => {
+      verb.complete.forEach((prompt,index) => fields.push({classId:homeworkClass.id,key:`${homeworkClass.id}.${verb.id}.complete.${index}`,label:`${verb.name} · Completa · ${prompt}`}));
+      verb.own.forEach((prompt,index) => fields.push({classId:homeworkClass.id,key:`${homeworkClass.id}.${verb.id}.own.${index}`,label:`${verb.name} · Sua frase · ${prompt}`}));
+    });
+    homeworkClass.presentations.forEach(presentation => {
+      presentation.notes.forEach((prompt,index) => fields.push({classId:homeworkClass.id,key:`${homeworkClass.id}.${presentation.id}.notes.${index}`,label:`${presentation.title} · ${prompt}`}));
+      presentation.companion.forEach((prompt,index) => fields.push({classId:homeworkClass.id,key:`${homeworkClass.id}.${presentation.id}.companion.${index}`,label:`${presentation.title} · Sobre seu colega · ${prompt}`}));
+    });
+    homeworkClass.roleplays.forEach(roleplay => fields.push({classId:homeworkClass.id,key:`${homeworkClass.id}.roleplay.${roleplay.id}`,label:`Roleplay · ${roleplay.title} · Minhas frases`}));
+    homeworkClass.exit.forEach((verb,index) => fields.push({classId:homeworkClass.id,key:`${homeworkClass.id}.exit.${index}`,label:`Exit ticket · ${verb}`}));
+    homeworkClass.checklist.forEach((item,index) => fields.push({classId:homeworkClass.id,key:`${homeworkClass.id}.checklist.${index}`,label:`Revisão · ${item}`,type:'checkbox'}));
+  });
+  return fields;
+}
+
+function homeworkField(key, label, multiline = true) {
+  const value = getHomeworkAnswers()[key] || '';
+  const id = `homework-${key.replace(/[^a-z0-9]+/gi,'-')}`;
+  const control = multiline
+    ? `<textarea id="${id}" data-homework-key="${key}" rows="2" placeholder="Escreva sua resposta em português">${escapeHtml(value)}</textarea>`
+    : `<input id="${id}" data-homework-key="${key}" value="${escapeHtml(value)}" autocomplete="off" placeholder="Resposta">`;
+  return `<label class="homework-field" for="${id}"><span>${label}</span>${control}</label>`;
+}
+
+function homeworkPlayButton(text) {
+  return `<button class="homework-play" type="button" data-speak="${encodeURIComponent(text)}" aria-label="Ouvir em português" title="Ouvir em português"></button>`;
+}
+
+function renderHomeworkVerb(homeworkClass, verb, index) {
+  const complete = verb.complete.map((prompt,itemIndex)=>homeworkField(`${homeworkClass.id}.${verb.id}.complete.${itemIndex}`,prompt,false)).join('');
+  const own = verb.own.map((prompt,itemIndex)=>homeworkField(`${homeworkClass.id}.${verb.id}.own.${itemIndex}`,prompt,true)).join('');
+  const examples = verb.examples.map(([portuguese,spanish])=>`<div class="homework-example"><div><strong>${portuguese}</strong><span>${spanish}</span></div>${homeworkPlayButton(portuguese)}</div>`).join('');
+  return `<section class="homework-verb-card"><div class="homework-card-heading"><span>${String(index+1).padStart(2,'0')}</span><div><small>VERBO DE APOIO</small><h3>${verb.name} <em>(${verb.translation})</em></h3></div></div><p class="homework-rule">${verb.rule}</p><div class="homework-examples">${examples}</div><div class="homework-exercise-grid"><article><p class="homework-label">EXERCÍCIO A · COMPLETA</p><div class="homework-fields">${complete}</div></article><article><p class="homework-label">EXERCÍCIO B · SUA VEZ</p><div class="homework-fields">${own}</div></article></div></section>`;
+}
+
+function renderHomeworkPresentation(homeworkClass, presentation) {
+  const notes = presentation.notes.map((prompt,index)=>homeworkField(`${homeworkClass.id}.${presentation.id}.notes.${index}`,prompt)).join('');
+  const companion = presentation.companion.map((prompt,index)=>homeworkField(`${homeworkClass.id}.${presentation.id}.companion.${index}`,prompt)).join('');
+  return `<section class="homework-subsection"><p class="homework-label">PREPARAR · FALAR · ESCUTAR</p><h3>${presentation.title}</h3><p>Escreva palavras-chave, fale sem ler e depois registre duas frases sobre seu colega.</p><div class="homework-exercise-grid"><article><h4>Minhas notas</h4><div class="homework-fields">${notes}</div></article><article><h4>Sobre meu colega</h4><div class="homework-fields">${companion}</div></article></div></section>`;
+}
+
+function renderHomeworkRoleplay(homeworkClass, roleplay) {
+  const roles = roleplay.roles.map(([title,copy])=>`<article class="roleplay-role"><strong>${title}</strong><p>${copy}</p></article>`).join('');
+  return `<section class="homework-roleplay"><h4>${roleplay.title}</h4><div class="roleplay-grid">${roles}</div>${homeworkField(`${homeworkClass.id}.roleplay.${roleplay.id}`,'Minhas frases para usar no roleplay')}</section>`;
+}
+
+function renderHomework() {
+  const section = $('#homework');
+  if (language !== 'pt') {
+    section.hidden = true;
+    return;
+  }
+
+  section.hidden = false;
+  stopPortugueseSpeech();
+  currentHomeworkClass = Math.min(currentHomeworkClass, HOMEWORK.classes.length-1);
+  $('#homeworkTabs').innerHTML = HOMEWORK.classes.map((homeworkClass,index)=>`<button type="button" data-homework-class="${index}" class="${index===currentHomeworkClass?'active':''}">${homeworkClass.label}</button>`).join('');
+
+  const homeworkClass = HOMEWORK.classes[currentHomeworkClass];
+  const warmup = homeworkClass.warmup.map((prompt,index)=>`<div class="homework-spoken"><div><span>RESPONDA EM VOZ ALTA</span><strong>${prompt}</strong></div>${homeworkPlayButton(prompt)}${homeworkField(`${homeworkClass.id}.warmup.${index}`,'Depois, escreva sua resposta')}</div>`).join('');
+  const verbs = homeworkClass.verbs.map((verb,index)=>renderHomeworkVerb(homeworkClass,verb,index)).join('');
+  const presentations = homeworkClass.presentations.map(item=>renderHomeworkPresentation(homeworkClass,item)).join('');
+  const roleplays = homeworkClass.roleplays.map(item=>renderHomeworkRoleplay(homeworkClass,item)).join('');
+  const exit = homeworkClass.exit.map((verb,index)=>homeworkField(`${homeworkClass.id}.exit.${index}`,verb)).join('');
+  const answers = getHomeworkAnswers();
+  const checklist = homeworkClass.checklist.map((item,index)=>{
+    const key = `${homeworkClass.id}.checklist.${index}`;
+    return `<label class="homework-check"><input type="checkbox" data-homework-key="${key}" ${answers[key]?'checked':''}><span>${item}</span></label>`;
+  }).join('');
+
+  $('#homeworkPanel').innerHTML = `<div class="homework-class-head"><p class="eyebrow">${homeworkClass.label.toUpperCase()} DE 2</p><h3>${homeworkClass.title}</h3><p>Fale primeiro e escreva depois. Use os botões de áudio para ouvir cada frase com voz em português brasileiro.</p></div><section class="homework-subsection"><p class="homework-label">01 · DI PRIMEIRO</p><h3>Responda em voz alta</h3><div class="homework-warmup">${warmup}</div></section>${verbs}${presentations}<section class="homework-subsection"><p class="homework-label">ROLEPLAYS</p><h3>Pratique as situações</h3><p>Troque de papel e repita. Use uma situação de cada vez, sem ler.</p><div class="homework-roleplays">${roleplays}</div></section><section class="homework-subsection"><p class="homework-label">EXIT TICKET</p><h3>Escreva três frases verdadeiras</h3><div class="homework-fields homework-exit">${exit}</div><div class="homework-checklist"><h4>Revisão final</h4>${checklist}</div></section>`;
+  updateHomeworkProgress();
+}
+
+function updateHomeworkProgress() {
+  const answers = getHomeworkAnswers();
+  const fields = getHomeworkFields();
+  const completed = fields.filter(field => field.type === 'checkbox' ? answers[field.key] === true : String(answers[field.key] || '').trim()).length;
+  $('#homeworkProgressValue').textContent = `${Math.round((completed / fields.length) * 100)}%`;
+}
+
+function showHomeworkSaved() {
+  const status = $('#homeworkSaveStatus');
+  status.textContent = 'Guardado agora';
+  window.clearTimeout(homeworkStatusTimer);
+  homeworkStatusTimer = window.setTimeout(()=>{ status.textContent = 'Respostas guardadas automaticamente'; },1800);
+}
+
+function exportHomework() {
+  const answers = getHomeworkAnswers();
+  const fields = getHomeworkFields();
+  const lines = [HOMEWORK.title.toUpperCase(),'Respostas da tarefa',`Exportado em: ${new Date().toLocaleString('pt-BR')}`,''];
+  HOMEWORK.classes.forEach(homeworkClass => {
+    lines.push(homeworkClass.label.toUpperCase(),homeworkClass.title,'');
+    fields.filter(field=>field.classId===homeworkClass.id).forEach(field => {
+      const value = field.type === 'checkbox' ? (answers[field.key] ? '[X] Sim' : '[ ] Não marcado') : (String(answers[field.key] || '').trim() || '—');
+      lines.push(field.label,value,'');
+    });
+  });
+  const blob = new Blob([lines.join('\r\n')],{type:'text/plain;charset=utf-8'});
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `tarefa-verbos-de-apoio-${new Date().toISOString().slice(0,10)}.txt`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(()=>URL.revokeObjectURL(link.href),1000);
 }
 
 function getClassProgress() {
@@ -346,18 +473,45 @@ function renderLesson() {
 
 function resetSpeechButton(button) {
   if (!button) return;
-  button.classList.remove('is-playing');
-  button.setAttribute('aria-label', 'Ouvir pronúncia');
-  button.title = 'Ouvir pronúncia';
+  const label = button.classList.contains('homework-play') ? 'Ouvir em português' : 'Ouvir pronúncia';
+  button.classList.remove('is-playing','speech-unavailable');
+  button.setAttribute('aria-label', label);
+  button.title = label;
 }
 
 function stopPortugueseSpeech() {
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  if (activePortugueseAudio) {
+    activePortugueseAudio.pause();
+    activePortugueseAudio.currentTime = 0;
+    activePortugueseAudio = null;
+  }
   resetSpeechButton(activeSpeechButton);
   activeSpeechButton = null;
 }
 
 function speakPortuguese(text, button) {
+  const recordedAudio = PORTUGUESE_AUDIO[text];
+  if (recordedAudio) {
+    stopPortugueseSpeech();
+    const audio = new Audio(recordedAudio);
+    activePortugueseAudio = audio;
+    activeSpeechButton = button;
+    button.classList.add('is-playing');
+    button.setAttribute('aria-label', `Reproduzindo em português: ${text}`);
+    button.title = `Reproduzindo em português: ${text}`;
+    const finishRecording = () => {
+      if (activePortugueseAudio !== audio) return;
+      resetSpeechButton(button);
+      activePortugueseAudio = null;
+      activeSpeechButton = null;
+    };
+    audio.onended = finishRecording;
+    audio.onerror = finishRecording;
+    audio.play().catch(finishRecording);
+    return;
+  }
+
   if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
     button.setAttribute('aria-label', 'Áudio não disponível neste navegador');
     button.title = 'Áudio não disponível neste navegador';
@@ -371,9 +525,15 @@ function speakPortuguese(text, button) {
   utterance.pitch = 1;
 
   const voices = window.speechSynthesis.getVoices();
-  utterance.voice = voices.find(voice => voice.lang.toLowerCase() === 'pt-br')
-    || voices.find(voice => voice.lang.toLowerCase().startsWith('pt'))
-    || null;
+  const portugueseVoice = voices.find(voice => voice.lang.toLowerCase() === 'pt-br')
+    || voices.find(voice => voice.lang.toLowerCase().startsWith('pt'));
+  if (!portugueseVoice) {
+    button.classList.add('speech-unavailable');
+    button.setAttribute('aria-label', 'Voz portuguesa não encontrada neste dispositivo');
+    button.title = 'Voz portuguesa não encontrada neste dispositivo';
+    return;
+  }
+  utterance.voice = portugueseVoice;
 
   activeSpeechButton = button;
   button.classList.add('is-playing');
@@ -574,6 +734,28 @@ $('#lessonPanel').addEventListener('click',(event)=>{
   }
   if (event.target.closest('#markLessonReviewed')) toggleLessonReviewed();
 });
+$('#homeworkTabs').addEventListener('click',(event)=>{
+  const button = event.target.closest('button[data-homework-class]');
+  if (!button) return;
+  currentHomeworkClass = Number(button.dataset.homeworkClass);
+  renderHomework();
+});
+$('#homeworkPanel').addEventListener('click',(event)=>{
+  const speakButton = event.target.closest('button[data-speak]');
+  if (!speakButton) return;
+  speakPortuguese(decodeURIComponent(speakButton.dataset.speak), speakButton);
+});
+$('#homeworkPanel').addEventListener('input',(event)=>{
+  const field = event.target.closest('[data-homework-key]');
+  if (!field) return;
+  const answers = getHomeworkAnswers();
+  answers[field.dataset.homeworkKey] = field.type === 'checkbox' ? field.checked : field.value;
+  saveHomeworkAnswers(answers);
+  updateHomeworkProgress();
+  showHomeworkSaved();
+});
+$('#exportHomework').addEventListener('click',exportHomework);
+$('#printHomework').addEventListener('click',()=>window.print());
 $('#revealClassCard').addEventListener('click',()=>{ classCardRevealed=!classCardRevealed; renderClassCard(); });
 $('#nextClassCard').addEventListener('click',()=>{ classCardIndex+=1; classCardRevealed=false; renderClassCard(); });
 $('#sceneTabs').addEventListener('click',(event)=>{ const button=event.target.closest('button[data-scene]'); if(!button)return; currentScene=Number(button.dataset.scene); $$('#sceneTabs button').forEach(item=>item.classList.toggle('active',item===button)); renderScene(); });

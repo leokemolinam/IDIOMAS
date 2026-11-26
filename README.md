@@ -20,6 +20,7 @@ Luego abre <http://127.0.0.1:4173>.
 - Portugués reforzado con conversaciones, pronunciación, contracciones, falsos cognatos y expresiones brasileñas.
 - Sección **Minhas Aulas** basada en el cuaderno `Portuguese Oscar M (1).xlsx`: saludos, vocabulario, preguntas de clase, gramática, verbos regulares e irregulares, pronunciación y tarjetas de repaso.
 - Botones de reproducción en las tarjetas de portugués con voz `pt-BR` del navegador.
+- Sección **Fazer tarefa** basada en `Verbos de Apoio .docx`, con las dos clases completas, respuestas guardadas automáticamente y exportación a `.txt` o PDF mediante impresión.
 - Inglés y alemán disponibles desde el selector de idioma.
 
 No requiere Internet, instalación de paquetes ni servicios externos.

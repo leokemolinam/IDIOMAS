@@ -5,3 +5,5 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+.tmp-docx-task/
+dist/audio/pt-br-full.mp3

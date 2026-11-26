@@ -90,6 +90,29 @@
       </div>
     </section>
 
+    <section class="homework-section section-shell" id="homework" aria-labelledby="homeworkTitle" hidden>
+      <div class="section-heading split-heading">
+        <div>
+          <p class="eyebrow">FAZER TAREFA</p>
+          <h2 id="homeworkTitle">Verbos de apoio</h2>
+          <p>Complete as duas aulas. Suas respostas ficam guardadas automaticamente neste navegador.</p>
+        </div>
+        <div class="homework-progress" aria-label="Progresso da tarefa">
+          <strong id="homeworkProgressValue">0%</strong>
+          <small>RESPOSTAS PREENCHIDAS</small>
+        </div>
+      </div>
+      <div class="homework-toolbar">
+        <div class="homework-tabs" id="homeworkTabs" aria-label="Classes da tarefa"></div>
+        <div class="homework-actions">
+          <span class="save-status" id="homeworkSaveStatus" aria-live="polite">Respostas guardadas automaticamente</span>
+          <button class="button button-ghost" id="printHomework" type="button">Imprimir ou guardar PDF</button>
+          <button class="button button-primary" id="exportHomework" type="button">Exportar respostas</button>
+        </div>
+      </div>
+      <form class="homework-panel" id="homeworkPanel"></form>
+    </section>
+
     <section class="timeline-section section-shell" id="timeline" aria-labelledby="timelineTitle">
       <div class="section-heading row-heading">
         <div>
@@ -203,6 +226,8 @@
     </div>
   </footer>
 
+  <script src="audio/manifest.js"></script>
+  <script src="homework-data.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
